@@ -2,8 +2,8 @@
 # hld2oit.py:
 #
 # Description: 	Tool intended to convert HLD format files to OIT format
-#       
-#		
+#
+#
 # Input Parameters:
 #		HLD File: Location to the HLD excel file
 #
