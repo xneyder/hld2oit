@@ -8,6 +8,8 @@ verify_ssl = true
 [packages]
 openpyxl = "*"
 pandas = "*"
+xlrd = "*"
+image = "*"
 
 [requires]
 python_version = "2.7"
