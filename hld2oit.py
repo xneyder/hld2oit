@@ -1,36 +1,150 @@
 #!/usr/bin/python
-# hld2oit.py:
-#
-# Description: 	Tool intended to convert HLD format files to OIT format
-#
-#
-# Input Parameters:
-#		HLD File: Location to the HLD excel file
-#
-# Output: OIT excel file
-#
-# Example:
-#		hld2oit.py "HLD_USC_AFF_vMCC_V.1.0.2.xls"
-#
-# Database:	N/A
-#
-# Created by : Daniel Jaramillo
-# Creation Date: 04/01/2019
-# Modified by:     Date:
-# All rights(C) reserved to Teoco
-###########################################################################
+""" hld2oit.py:
+
+ Description: 	Tool intended to convert HLD format files to OIT format
+
+
+ Input Parameters:
+		HLD File: Location to the HLD excel file
+
+ Output: OIT excel file
+
+ Example:
+		hld2oit.py "HLD_USC_AFF_vMCC_V.1.0.2.xls"
+
+ Database:	N/A
+
+ Created by : Daniel Jaramillo
+ Creation Date: 04/01/2019
+ Modified by:     Date:
+ All rights(C) reserved to Teoco
+"""
+
 import sys
 import os
+import tokenize
 import pandas as pd
+from StringIO import StringIO
 from openpyxl import load_workbook
 from LoggerInit import LoggerInit
 from oit_mapping import oit_mapping
 
-####
-#Description:  Parse the Front Page sheet
-#Input Parametes:
-#    xl: Pandas excel file object
+def get_vars_divs(formula):
+    """
+    Description: Gets the variables and the divisors from a formula
+    Input Parametes:
+        formula
+    """
+    vars=[]
+    divs=[]
+    div=''
+    start_div=False
+    it=tokenize.generate_tokens(StringIO(formula).readline)
+    for type,value,_,_,_ in it:
+        if value=='/':
+            if div:
+                divs.append(div)
+                div=''
+            start_div=True
+        elif value=='*':
+            if div:
+                divs.append(div)
+                div=''
+            start_div=False
+        elif value==')':
+            if div:
+                divs.append(div)
+                div=''
+            start_div=False
+        else:
+            if type == 1:
+                vars.append(value)
+            if start_div and value !="(":
+                div+=value
+    vars=list(set(vars))
+    divs=list(set(divs))
+    return vars,divs
+
+def create_tpt(kpi_name,formula,folder):
+    """
+    Description: Creates tpt function fomr a formula
+    Input Parametes:
+       kpi_name
+       formula
+       folder
+    """
+    app_logger=logger.get_logger("create_tpt")
+    app_logger.info("Creating {kpi_name}={formula}"\
+                    .format(kpi_name=kpi_name,formula=formula))
+    vars,divs=get_vars_divs(formula)
+    tpt_file_name='{schema}_TrolLocalFunctions.tpt'\
+        .format(schema=metadata['Library Info']['SCHEMA'])
+    with open(tpt_file_name,'a') as file:
+        file.write('\n')
+        file.write('@@PROTO\n')
+        file.write('type=UF\n')
+        file.write('id={kpi_name}\n'.format(kpi_name=kpi_name))
+        file.write('location=Local.{folder}\n'.format(folder=folder))
+        file.write('desc=\n')
+        file.write('bitmap=\n')
+        file.write('inpParamsNum={num_vars}\n'.format(num_vars=len(vars)))
+        for idx,var in enumerate(vars):
+            file.write('{idx}={var}, double, 1\n'.format(idx=idx+1,var=var))
+        file.write('outParamsNum=1\n')
+        file.write('1={kpi_name}, double\n'.format(kpi_name=kpi_name))
+        file.write('keywordsNum=0\n')
+        file.write('help=\n')
+        file.write('@@CodeBegin\n')
+        file.write('\n')
+        for idx,var in enumerate(vars):
+            vars[idx]='IsNull({var})'.format(var=var)
+        vars_val="if ({vars}){{".format(vars='||'.join(vars))
+        file.write(vars_val)
+        file.write('\n')
+        file.write('    {kpi_name} = NullDouble();\n'.format(kpi_name=kpi_name))
+        file.write('    return true;\n')
+        file.write('}\n')
+        if divs:
+            for idx,div in enumerate(divs):
+                divs[idx]='{div} == 0'.format(div=div)
+            divs_val="if ({divs}){{".format(divs='||'.join(divs))
+            file.write(divs_val)
+            file.write('\n')
+            file.write('    {kpi_name} = 0;\n'.format(kpi_name=kpi_name))
+            file.write('    return true;\n')
+            file.write('}\n')
+        file.write('{kpi_name}={formula};'\
+                   .format(kpi_name=kpi_name,formula=formula))
+        file.write('\n')
+        file.write('return true;\n')
+        file.write('\n')
+        file.write('@@CodeEnd\n')
+        file.write('@@PROTO_END\n')
+        file.write('\n')
+
+
+def create_functions():
+    """
+    Description: creates the functions for the KPI counters
+    """
+    app_logger=logger.get_logger("create_functions")
+    app_logger.info("Creating functions")
+    tpt_file_name='{schema}_TrolLocalFunctions.tpt'\
+        .format(schema=metadata['Library Info']['SCHEMA'])
+    #Make file emty
+    open(tpt_file_name, 'w').close()
+    df=metadata['Keys_Counters_KPIs'].dropna(subset=['KPI Formula'])
+    for idx,kpi in df.iterrows():
+        create_tpt(kpi['Counter/KPI DB Name'],
+            kpi['KPI Formula'],
+            metadata['Library Info']['SCHEMA'])
+
 def parse_front_page(xl):
+    """
+    Description:  Parse the Front Page sheet
+    Input Parametes:
+        xl: Pandas excel file object
+    """
     global metadata
     metadata['Front Page']={}
     app_logger=logger.get_logger("parse_front_page")
@@ -42,11 +156,12 @@ def parse_front_page(xl):
             break
         metadata['Front Page'][row[0]]=row[1]
 
-####
-#Description:  Parse the Library Info sheet
-#Input Parametes:
-#    xl: Pandas excel file object
 def parse_library_info(xl):
+    """
+    Description:  Parse the Library Info sheet
+    Input Parametes:
+        xl: Pandas excel file object
+    """
     global metadata
     metadata['Library Info']={}
     app_logger=logger.get_logger("parse_library_info")
@@ -59,12 +174,13 @@ def parse_library_info(xl):
         metadata['Library Info'][row[0]]=row[1]
 
 
-####
-#Description:  Parse the sheet in table format
-#Input Parametes:
-#    xl: Pandas excel file object
-#    sheet name 
 def parse_table(xl,sheet_name):
+    """
+    Description:  Parse the sheet in table format
+    Input Parametes:
+        xl: Pandas excel file object
+        sheet name
+    """
     global metadata
     metadata[sheet_name]={}
     app_logger=logger.get_logger("parse_table")
@@ -73,11 +189,12 @@ def parse_table(xl,sheet_name):
     metadata[sheet_name]=df.iloc[2:,1:]
 
 
-####
-#Description: Load the configuration from HLD file
-#Input Parametes:
-#    hld_file: Excel containing the functional specification for the library
 def load_hld(hld_file):
+    """
+    Description: Load the configuration from HLD file
+    Input Parametes:
+        hld_file: Excel containing the functional specification for the library
+    """
     app_logger=logger.get_logger("load_hld "+hld_file)
     app_logger.info("Parsing HLD")
     xl=pd.ExcelFile(hld_file)
@@ -89,11 +206,12 @@ def load_hld(hld_file):
 
 
 
-####
-#Description: write to OIT
-#Input Parametes:
-#    hld_file: Excel containing the functional specification for the library
 def write_oit():
+    """
+    Description: write to OIT
+    Input Parametes:
+        hld_file: Excel containing the functional specification for the library
+    """
     app_logger=logger.get_logger("write_oit")
     app_logger.info("Creating OIT File")
 
@@ -215,6 +333,7 @@ def write_oit():
         ws.append(record)
         prev_counter_set=counter['Table Name']
     wb.save("{schema}.xlsx".format(schema=schema))
+    app_logger.info("{schema}.xlsx file created".format(schema=schema))
 
 def main():
     app_logger=logger.get_logger("main")
@@ -232,6 +351,8 @@ def main():
     load_hld(hld_file)
     #Create OIT
     write_oit()
+    #Create tpt functions
+    create_functions()
 
 
 #Application starts running here
