@@ -89,14 +89,17 @@ def create_tpt(kpi_name,formula,folder,table):
     call_str='{schema}_{kpi_name}('.format(schema=schema,kpi_name=kpi_name)
     call_vars=[]
     for var in vars:
-       index=metadata['Keys_Counters_KPIs']\
+        if var+table in temp_dict:
+            rd_name=temp_dict[var+table]
+        else:
+            index=metadata['Keys_Counters_KPIs']\
                .index[(metadata['Keys_Counters_KPIs']['Counter/KPI DB Name']\
                       == var)
                       & (metadata['Keys_Counters_KPIs']['Table Name']\
                       == table)]
-       rd_name=metadata['Keys_Counters_KPIs']\
-               .loc[index,'Raw Data Counter Name/OID'].item()
-       call_vars.append('{{{rd_name}}}'.format(rd_name=rd_name))
+            rd_name='{'+metadata['Keys_Counters_KPIs']\
+               .loc[index,'Raw Data Counter Name/OID'].item()+'}'
+        call_vars.append('{rd_name}'.format(rd_name=rd_name))
     call_str+=','.join(call_vars)+')'
     tpt_file_name='{schema}_TrolLocalFunctions.tpt'\
         .format(schema=schema)
@@ -151,20 +154,26 @@ def create_functions():
     Description: creates the functions for the KPI counters
     """
     global custom_counters
+    global temp_dict
     app_logger=logger.get_logger("create_functions")
     app_logger.info("Creating functions")
     tpt_file_name='{schema}_TrolLocalFunctions.tpt'\
         .format(schema=metadata['Library Info']['SCHEMA'])
     #Make file emty
     open(tpt_file_name, 'w').close()
+    temp_cnt=1
     #Loop over all counters
     df=metadata['Keys_Counters_KPIs']
     for idx,kpi in df.iterrows():
         raw_formula=kpi['KPI Formula']
         if kpi['Counter/KPI DB Name'] in custom_counters:
             call_str=custom_counters[kpi['Counter/KPI DB Name']]['call_str']
-            if 'generate_temp' in custom_counters[kpi['Counter/KPI DB Name']]:
+            if custom_counters[kpi['Counter/KPI DB Name']]['generate_temp']\
+               == 'True':
                 #Generate temp entry
+                temp_dict[kpi['Counter/KPI DB Name']+kpi['Table Name']]\
+                        ='temp{temp_cnt}'.format(temp_cnt=temp_cnt)
+                temp_cnt+=1
                 pass
         elif isinstance(raw_formula, float) and np.isnan(raw_formula):
             continue
@@ -384,7 +393,8 @@ def write_oit():
         ]
         #Counter has custom formula and is needed a temp counter
         if counter['Counter/KPI DB Name'] in custom_counters and\
-           'generate_temp' in custom_counters[counter['Counter/KPI DB Name']]:
+           custom_counters[counter['Counter/KPI DB Name']]['generate_temp']\
+               == 'True':
             temp_record=copy.deepcopy(record)
             temp_record[1]='temp{temp_ct}'.format(temp_ct=temp_ct)
             #Fix the formula to use the temp counter
@@ -451,4 +461,5 @@ if __name__ == "__main__":
     logger=LoggerInit(log_file,10)
     metadata={}
     custom_counters={}
+    temp_dict={}
     main()
