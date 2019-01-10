@@ -1,11 +1,13 @@
 #!/usr/bin/python
 """ hld2oit.py:
 
- Description: 	Tool intended to convert HLD format files to OIT format
+ Description: Tool intended to convert HLD format files to OIT format
 
 
  Input Parameters:
 		HLD File: Location to the HLD excel file
+		Custom counter file: File containing a json file defining counters with
+            custom formulas
 
  Output: OIT excel file
 
@@ -23,7 +25,11 @@
 import sys
 import os
 import tokenize
+import ast
+import json
+import copy
 import pandas as pd
+import numpy as np
 from StringIO import StringIO
 from openpyxl import load_workbook
 from LoggerInit import LoggerInit
@@ -65,25 +71,41 @@ def get_vars_divs(formula):
     divs=list(set(divs))
     return vars,divs
 
-def create_tpt(kpi_name,formula,folder):
+def create_tpt(kpi_name,formula,folder,table):
     """
     Description: Creates tpt function fomr a formula
     Input Parametes:
        kpi_name
        formula
        folder
+       table
     """
     app_logger=logger.get_logger("create_tpt")
     app_logger.info("Creating {kpi_name}={formula}"\
                     .format(kpi_name=kpi_name,formula=formula))
     vars,divs=get_vars_divs(formula)
+    schema=metadata['Library Info']['SCHEMA']
+    #Build the string to call the function
+    call_str='{schema}_{kpi_name}('.format(schema=schema,kpi_name=kpi_name)
+    call_vars=[]
+    for var in vars:
+       index=metadata['Keys_Counters_KPIs']\
+               .index[(metadata['Keys_Counters_KPIs']['Counter/KPI DB Name']\
+                      == var)
+                      & (metadata['Keys_Counters_KPIs']['Table Name']\
+                      == table)]
+       rd_name=metadata['Keys_Counters_KPIs']\
+               .loc[index,'Raw Data Counter Name/OID'].item()
+       call_vars.append('{{{rd_name}}}'.format(rd_name=rd_name))
+    call_str+=','.join(call_vars)+')'
     tpt_file_name='{schema}_TrolLocalFunctions.tpt'\
-        .format(schema=metadata['Library Info']['SCHEMA'])
+        .format(schema=schema)
     with open(tpt_file_name,'a') as file:
         file.write('\n')
         file.write('@@PROTO\n')
         file.write('type=UF\n')
-        file.write('id={kpi_name}\n'.format(kpi_name=kpi_name))
+        file.write('id={schema}_{kpi_name}\n'\
+                   .format(schema=schema,kpi_name=kpi_name))
         file.write('location=Local.{folder}\n'.format(folder=folder))
         file.write('desc=\n')
         file.write('bitmap=\n')
@@ -121,23 +143,52 @@ def create_tpt(kpi_name,formula,folder):
         file.write('@@CodeEnd\n')
         file.write('@@PROTO_END\n')
         file.write('\n')
+    return call_str
 
 
 def create_functions():
     """
     Description: creates the functions for the KPI counters
     """
+    global custom_counters
     app_logger=logger.get_logger("create_functions")
     app_logger.info("Creating functions")
     tpt_file_name='{schema}_TrolLocalFunctions.tpt'\
         .format(schema=metadata['Library Info']['SCHEMA'])
     #Make file emty
     open(tpt_file_name, 'w').close()
-    df=metadata['Keys_Counters_KPIs'].dropna(subset=['KPI Formula'])
+    #Loop over all counters
+    df=metadata['Keys_Counters_KPIs']
     for idx,kpi in df.iterrows():
-        create_tpt(kpi['Counter/KPI DB Name'],
-            kpi['KPI Formula'],
-            metadata['Library Info']['SCHEMA'])
+        raw_formula=kpi['KPI Formula']
+        if kpi['Counter/KPI DB Name'] in custom_counters:
+            call_str=custom_counters[kpi['Counter/KPI DB Name']]['call_str']
+            if 'generate_temp' in custom_counters[kpi['Counter/KPI DB Name']]:
+                #Generate temp entry
+                pass
+        elif isinstance(raw_formula, float) and np.isnan(raw_formula):
+            continue
+        else:
+            formula=kpi['KPI Formula'].replace(' ','').replace('\n','')
+            #Validate that the formula is valid
+            try:
+                ast.parse(formula)
+            except SyntaxError:
+                app_logger.error('Wrong formula {kpi_name}={formula}'\
+                                 .format(kpi_name=kpi['Counter/KPI DB Name'],
+                                         formula=formula))
+                quit()
+            call_str=create_tpt(kpi['Counter/KPI DB Name'],
+                formula,
+                metadata['Library Info']['SCHEMA'],
+                kpi['Table Name'])
+        #Modify formula in metadata
+        index=metadata['Keys_Counters_KPIs']\
+                .index[(metadata['Keys_Counters_KPIs']['Counter/KPI DB Name']\
+                       ==kpi['Counter/KPI DB Name'])\
+                      & (metadata['Keys_Counters_KPIs']['Table Name']\
+                       ==kpi['Table Name'])]
+        metadata['Keys_Counters_KPIs'].loc[index,'KPI Formula']=call_str
 
 def parse_front_page(xl):
     """
@@ -297,6 +348,7 @@ def write_oit():
     df=metadata['Keys_Counters_KPIs'].dropna(how='all')
     prev_counter_set=''
     aggr_list=['AVG','SUM','MAX','MIN']
+    temp_ct=1
     for index,counter in df.iterrows():
         size=''
         if counter['TYPE'] in ['GPI','PI','OI']:
@@ -330,29 +382,61 @@ def write_oit():
                 counter['Visible'],
                 'YES',
         ]
+        #Counter has custom formula and is needed a temp counter
+        if counter['Counter/KPI DB Name'] in custom_counters and\
+           'generate_temp' in custom_counters[counter['Counter/KPI DB Name']]:
+            temp_record=copy.deepcopy(record)
+            temp_record[1]='temp{temp_ct}'.format(temp_ct=temp_ct)
+            #Fix the formula to use the temp counter
+            record[5]='temp{temp_ct}'.format(temp_ct=temp_ct)
+            temp_ct+=1
+            temp_record[2]=''
+            temp_record[3]=''
+            temp_record[4]='NULL'
+            temp_record[5]=counter['KPI Formula']
+            temp_record[7]=order
+            #Increase the order of the counter
+            record[7]+=1
+            order+=1
+            temp_record[9]='NULL'
+            temp_record[10]='NULL'
+            temp_record[11]='NULL'
+            temp_record[12]=''
+            temp_record[14]='N'
+            temp_record[15]='NO'
+            ws.append(temp_record)
         ws.append(record)
         prev_counter_set=counter['Table Name']
     wb.save("{schema}.xlsx".format(schema=schema))
     app_logger.info("{schema}.xlsx file created".format(schema=schema))
 
 def main():
+    global custom_counters
     app_logger=logger.get_logger("main")
     app_logger.info("Starting {script}".format(script=sys.argv[0]))
     #Validate the line arguments
     if len(sys.argv) < 2:
-        app_logger.error("Usage {script} 'HLD File'"
+        app_logger.error("Usage {script} <HLD File> [custom counter file]"
                          .format(script=sys.argv[0]))
-        app_logger.error("Example {script} 'HLD_USC_AFF_vMCC_V.1.0.2.xls'"
+        app_logger.error("Example {script} 'HLD_USC_AFF_vMCC_V.1.0.2.xls'\
+                          AFFIRMED_vMCC_custom_counters.py"
                          .format(script=sys.argv[0]))
         quit()
-
     hld_file=sys.argv[1]
+    #Are there custom counters?
+    if sys.argv[2]:
+        custom_counters_file=sys.argv[2]
+        try:
+            with open(custom_counters_file) as json_file:
+                custom_counters=json.load(json_file)
+        except IOError:
+            pass
     #Load configuration
     load_hld(hld_file)
-    #Create OIT
-    write_oit()
     #Create tpt functions
     create_functions()
+    #Create OIT
+    write_oit()
 
 
 #Application starts running here
@@ -366,4 +450,5 @@ if __name__ == "__main__":
     log_file=os.path.join(log_dir,"hld2oit.log")
     logger=LoggerInit(log_file,10)
     metadata={}
+    custom_counters={}
     main()
