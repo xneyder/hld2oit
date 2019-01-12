@@ -101,6 +101,11 @@ def create_tpt(kpi_name,formula,folder,table):
                .loc[index,'Raw Data Counter Name/OID'].item()+'}'
         call_vars.append('{rd_name}'.format(rd_name=rd_name))
     call_str+=','.join(call_vars)+')'
+    #Check if KPI is already created
+    id='{schema}_{kpi_name}\n'.format(schema=schema,kpi_name=kpi_name)
+    if id in tpt_functions:
+        return call_str
+    tpt_functions.append(id)
     tpt_file_name='{schema}_TrolLocalFunctions.tpt'\
         .format(schema=schema)
     with open(tpt_file_name,'a') as file:
@@ -307,7 +312,7 @@ def write_oit():
         #Populate CFG Tables
         #Get table list for autopuplate
         df=metadata['Tables']
-        df=df.loc[df['Entity'] == entity['Entity Name']].head()
+        df=df.loc[df['Entity'] == entity['Entity Name']].head(3)
         tables_arr=[]
         for index,table in df.iterrows():
             tables_arr.append(table['Table Name'])
@@ -318,7 +323,7 @@ def write_oit():
         #Populate CFG Fields
         key_list=entity['Keys'].split(',')
         for idx,key in enumerate(key_list):
-            record=[entity['CFG Table or conf View'],
+            record=[configuration_view,
                     key,'VARCHAR2','YES',100,idx+1]
             ws_cfg_fields.append(record)
 
@@ -355,17 +360,17 @@ def write_oit():
     #Populate Loaded Counters
     ws = wb['Loaded Counters']
     df=metadata['Keys_Counters_KPIs'].dropna(how='all')
-    prev_counter_set=''
     aggr_list=['AVG','SUM','MAX','MIN']
     temp_ct=1
+    order={}
     for index,counter in df.iterrows():
         size=''
         if counter['TYPE'] in ['GPI','PI','OI']:
             size=100
-        if prev_counter_set!=counter['Table Name']:
-            order=1
+        if counter['Table Name'] not in order:
+            order[counter['Table Name']]=1
         else:
-            order+=1
+            order[counter['Table Name']]+=1
         if counter['Time Aggregation'] not in aggr_list:
             aggr_formula='NULL'
         else:
@@ -381,7 +386,7 @@ def write_oit():
                 counter['TYPE'],
                 counter['KPI Formula'],
                 size,
-                order,
+                order[counter['Table Name']],
                 'YES',
                 aggr_formula,
                 aggr_formula,
@@ -404,10 +409,10 @@ def write_oit():
             temp_record[3]=''
             temp_record[4]='NULL'
             temp_record[5]=counter['KPI Formula']
-            temp_record[7]=order
+            temp_record[7]=order[counter['Table Name']]
             #Increase the order of the counter
             record[7]+=1
-            order+=1
+            order[counter['Table Name']]+=1
             temp_record[9]='NULL'
             temp_record[10]='NULL'
             temp_record[11]='NULL'
@@ -416,9 +421,8 @@ def write_oit():
             temp_record[15]='NO'
             ws.append(temp_record)
         ws.append(record)
-        prev_counter_set=counter['Table Name']
-    wb.save("{schema}.xlsx".format(schema=schema))
-    app_logger.info("{schema}.xlsx file created".format(schema=schema))
+    wb.save("{schema}_EZPM.xlsx".format(schema=schema))
+    app_logger.info("{schema}_EZPM.xlsx file created".format(schema=schema))
 
 def main():
     global custom_counters
@@ -462,4 +466,5 @@ if __name__ == "__main__":
     metadata={}
     custom_counters={}
     temp_dict={}
+    tpt_functions=[]
     main()
