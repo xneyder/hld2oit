@@ -438,7 +438,7 @@ if (IsNull(PERIOD)||IsNull(NUMUPLINKBYTES)){
     SGW_UPLINK_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     SGW_UPLINK_THROUGHPUT = 0;
     return true;
 }
@@ -468,7 +468,7 @@ if (IsNull(NUMDOWNLINKBYTES)||IsNull(PERIOD)){
     SGW_DOWNLINK_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     SGW_DOWNLINK_THROUGHPUT = 0;
     return true;
 }
@@ -674,7 +674,7 @@ if (IsNull(PERIOD)||IsNull(NUMUPLINKBYTES)){
     PGW_UPLINK_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     PGW_UPLINK_THROUGHPUT = 0;
     return true;
 }
@@ -704,7 +704,7 @@ if (IsNull(NUMDOWNLINKBYTES)||IsNull(PERIOD)){
     PGW_DOWNLINK_THROUGHOUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     PGW_DOWNLINK_THROUGHOUT = 0;
     return true;
 }
@@ -795,6 +795,10 @@ if (IsNull(NUMCREATEPDPACCEPT)||IsNull(PERIOD)){
     CREATE_PDP_CTX_ACPT_PER_SECOND = NullDouble();
     return true;
 }
+if (PERIOD == 0){
+    CREATE_PDP_CTX_ACPT_PER_SECOND = 0;
+    return true;
+}
 CREATE_PDP_CTX_ACPT_PER_SECOND=NUMCREATEPDPACCEPT/PERIOD;
 return true;
 
@@ -819,6 +823,10 @@ help=
 
 if (IsNull(NUMCREATEPDPREJECT)||IsNull(PERIOD)){
     CREATE_PDP_CTX_REJ_PER_SECOND = NullDouble();
+    return true;
+}
+if (PERIOD == 0){
+    CREATE_PDP_CTX_REJ_PER_SECOND = 0;
     return true;
 }
 CREATE_PDP_CTX_REJ_PER_SECOND=NUMCREATEPDPREJECT/PERIOD;
@@ -847,6 +855,10 @@ if (IsNull(NUMDELETEPDPACCEPT)||IsNull(PERIOD)){
     DEL_PDP_CTX_ACPT_PER_SECOND = NullDouble();
     return true;
 }
+if (PERIOD == 0){
+    DEL_PDP_CTX_ACPT_PER_SECOND = 0;
+    return true;
+}
 DEL_PDP_CTX_ACPT_PER_SECOND=NUMDELETEPDPACCEPT/PERIOD;
 return true;
 
@@ -873,6 +885,10 @@ if (IsNull(NUMDELETEPDPREJECT)||IsNull(PERIOD)){
     DEL_PDP_CTX_REJ_PER_SECOND = NullDouble();
     return true;
 }
+if (PERIOD == 0){
+    DEL_PDP_CTX_REJ_PER_SECOND = 0;
+    return true;
+}
 DEL_PDP_CTX_REJ_PER_SECOND=NUMDELETEPDPREJECT/PERIOD;
 return true;
 
@@ -897,6 +913,10 @@ help=
 
 if (IsNull(NUMIDLEDURATIONEXCEEDEDCLOSES)||IsNull(PERIOD)){
     IDLE_SES_DUR_EXCD_CLSE_PER_SEC = NullDouble();
+    return true;
+}
+if (PERIOD == 0){
+    IDLE_SES_DUR_EXCD_CLSE_PER_SEC = 0;
     return true;
 }
 IDLE_SES_DUR_EXCD_CLSE_PER_SEC=NUMIDLEDURATIONEXCEEDEDCLOSES/PERIOD;
@@ -1133,6 +1153,10 @@ if (IsNull(PERIOD)||IsNull(NUMUPLINKPACKETS)){
     PGW_UPLINK_PACKET_RATE = NullDouble();
     return true;
 }
+if (PERIOD == 0){
+    PGW_UPLINK_PACKET_RATE = 0;
+    return true;
+}
 PGW_UPLINK_PACKET_RATE=NUMUPLINKPACKETS/PERIOD;
 return true;
 
@@ -1157,6 +1181,10 @@ help=
 
 if (IsNull(NUMDOWNLINKPACKETS)||IsNull(PERIOD)){
     PGW_DOWNLINK_PACKET_RATE = NullDouble();
+    return true;
+}
+if (PERIOD == 0){
+    PGW_DOWNLINK_PACKET_RATE = 0;
     return true;
 }
 PGW_DOWNLINK_PACKET_RATE=NUMDOWNLINKPACKETS/PERIOD;
@@ -1545,7 +1573,7 @@ if (IsNull(PERIOD)||IsNull(NUMUPLINKBYTES)){
     SAEGWPGW_UPLINK_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     SAEGWPGW_UPLINK_THROUGHPUT = 0;
     return true;
 }
@@ -1575,7 +1603,7 @@ if (IsNull(NUMDOWNLINKBYTES)||IsNull(PERIOD)){
     SAEGWPGW_DOWNLINK_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     SAEGWPGW_DOWNLINK_THROUGHPUT = 0;
     return true;
 }
@@ -2142,6 +2170,10 @@ if (IsNull(NUMUPLINKPACKETS)||IsNull(NUMUPLINKBYTES)){
     APN_AVERAGE_UPLINK_PACKET_SIZE = NullDouble();
     return true;
 }
+if (NUMUPLINKPACKETS == 0){
+    APN_AVERAGE_UPLINK_PACKET_SIZE = 0;
+    return true;
+}
 APN_AVERAGE_UPLINK_PACKET_SIZE=NUMUPLINKBYTES/NUMUPLINKPACKETS;
 return true;
 
@@ -2166,6 +2198,10 @@ help=
 
 if (IsNull(NUMDOWNLINKBYTES)||IsNull(NUMDOWNLINKPACKETS)){
     APN_AVG_DLNK_PACKET_SIZE = NullDouble();
+    return true;
+}
+if (NUMDOWNLINKPACKETS == 0){
+    APN_AVG_DLNK_PACKET_SIZE = 0;
     return true;
 }
 APN_AVG_DLNK_PACKET_SIZE=NUMDOWNLINKBYTES/NUMDOWNLINKPACKETS;
@@ -2195,7 +2231,7 @@ if (IsNull(NUMBEARERS)||IsNull(NUMDOWNLINKBYTES)||IsNull(PERIOD)){
     APN_PDP_CTX_DOWNLINK_DATA_RT = NullDouble();
     return true;
 }
-if (NUMBEARERS == 0||1000 == 0){
+if (NUMBEARERS == 0||PERIOD == 0||1000 == 0){
     APN_PDP_CTX_DOWNLINK_DATA_RT = 0;
     return true;
 }
@@ -2226,7 +2262,7 @@ if (IsNull(NUMBEARERS)||IsNull(PERIOD)||IsNull(NUMUPLINKBYTES)){
     APN_PDP_CTX_UPLINK_DATA_RT = NullDouble();
     return true;
 }
-if (NUMBEARERS == 0||1000 == 0){
+if (NUMBEARERS == 0||PERIOD == 0||1000 == 0){
     APN_PDP_CTX_UPLINK_DATA_RT = 0;
     return true;
 }
@@ -2256,7 +2292,7 @@ if (IsNull(PERIOD)||IsNull(NUMUPLINKBYTES)){
     APN_UPLINK_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     APN_UPLINK_THROUGHPUT = 0;
     return true;
 }
@@ -2286,7 +2322,7 @@ if (IsNull(NUMDOWNLINKBYTES)||IsNull(PERIOD)){
     APN_DOWNLINK_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     APN_DOWNLINK_THROUGHPUT = 0;
     return true;
 }
@@ -2368,6 +2404,10 @@ help=
 
 if (IsNull(NUMCREATEPDPACCEPT)||IsNull(PERIOD)||IsNull(NUMCREATESESSIONACCEPT)){
     APN_ACTIVATION_RATE = NullDouble();
+    return true;
+}
+if (PERIOD == 0){
+    APN_ACTIVATION_RATE = 0;
     return true;
 }
 APN_ACTIVATION_RATE=(NUMCREATESESSIONACCEPT+NUMCREATEPDPACCEPT)/PERIOD;
@@ -2627,7 +2667,7 @@ if (IsNull(NUMRXV6BYTES)||IsNull(NUMRXV4BYTES)||IsNull(PERIOD)){
     SYSTEM_RECEIVED_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     SYSTEM_RECEIVED_THROUGHPUT = 0;
     return true;
 }
@@ -2658,7 +2698,7 @@ if (IsNull(NUMTXV4BYTES)||IsNull(NUMTXV6BYTES)||IsNull(PERIOD)){
     SYSTEM_TRANSM_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     SYSTEM_TRANSM_THROUGHPUT = 0;
     return true;
 }
@@ -3059,7 +3099,7 @@ if (IsNull(NUMRXV6BYTES)||IsNull(NUMTXV4BYTES)||IsNull(NUMRXV4BYTES)||IsNull(PER
     NETWORKING_THROUGHPUT = NullDouble();
     return true;
 }
-if (PERIOD == 0){
+if (PERIOD == 0||1000000 == 0){
     NETWORKING_THROUGHPUT = 0;
     return true;
 }
@@ -3089,7 +3129,7 @@ if (IsNull(NUMDOWNLINKBYTES)||IsNull(PERIOD)){
     QCI_ARP_DOWNLINK_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     QCI_ARP_DOWNLINK_THROUGHPUT = 0;
     return true;
 }
@@ -3119,7 +3159,7 @@ if (IsNull(PERIOD)||IsNull(NUMUPLINKBYTES)){
     QCI_ARP_UPLINK_THROUGHPUT = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     QCI_ARP_UPLINK_THROUGHPUT = 0;
     return true;
 }
@@ -3239,7 +3279,7 @@ if (IsNull(NUMDOWNLINKBYTES_APN)||IsNull(PERIOD)){
     QCI_ARP_APN_DOWNLINK_THRP = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     QCI_ARP_APN_DOWNLINK_THRP = 0;
     return true;
 }
@@ -3269,7 +3309,7 @@ if (IsNull(NUMUPLINKBYTES_APN)||IsNull(PERIOD)){
     QCI_ARP_APN_UPLINK_THRP = NullDouble();
     return true;
 }
-if (1000000 == 0){
+if (PERIOD == 0||1000000 == 0){
     QCI_ARP_APN_UPLINK_THRP = 0;
     return true;
 }

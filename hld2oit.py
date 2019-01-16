@@ -67,6 +67,8 @@ def get_vars_divs(formula):
                 vars.append(value)
             if start_div and value !="(":
                 div+=value
+    if div:
+        divs.append(div)
     vars=list(set(vars))
     divs=list(set(divs))
     return vars,divs
